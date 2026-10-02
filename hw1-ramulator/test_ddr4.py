@@ -40,6 +40,7 @@ ddr4 = ramulator.dram.DDR4(
 
     # Product-specific Configuration
     rate=3600,
+    tCK_ps=556,
     nCL=16,
     nRAS=42,
     nRC=64,
