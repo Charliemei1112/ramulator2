@@ -1,9 +1,9 @@
 {
   "name": "ramulator2",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": ".."
-  },
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "ramulator2",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "none",
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
   "containerEnv": {
@@ -14,11 +14,6 @@
     "VIRTUAL_ENV": "${containerWorkspaceFolder}/ramulator2-venv",
     "PATH": "${containerWorkspaceFolder}/ramulator2-venv/bin:${containerEnv:PATH}"
   },
-  "runArgs": [
-    "--init",
-    "--cap-add=SYS_PTRACE",
-    "--security-opt=seccomp=unconfined"
-  ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "vscode": {

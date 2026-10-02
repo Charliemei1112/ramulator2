@@ -13,7 +13,6 @@ NUM_CHANNELS = 4 # dual-channel DDR5
 frontend = ramulator.frontend.LatencyThroughputTrace(
     clock_ratio=8,
     nop_counter=NOP_COUNTER,  # Sweeping Variable
-    
     latency_sample_count=PROBE_REQUESTS,
     warmup_cycles=WARMUP_CYCLES,
     stream_cls=64,
@@ -35,9 +34,9 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
 
 # Configure DDR5.
 ddr5 = ramulator.dram.DDR5(
-    org_preset="DDR5_16Gb_x8",
-    timing_preset="DDR5_7200AN",
-    rank=RANK,
+    org_preset="DDR5_16Gb_x8",      # 2GB chip * 8
+    timing_preset="DDR5_7200AN",    # 7200MT/s
+    rank=RANK,                      # Dual-Rank
 
     # my own pc configurations: with XMP 6400 cl32-39-39-102 overclocked to 7200 cl33-43-43-76
     nCL=33,
@@ -45,7 +44,8 @@ ddr5 = ramulator.dram.DDR5(
     nRP=43,
     nRAS=76,
     nRC=119,
-    nREFI=131_072,
+    nREFI=65_536,
+    nRFC=520
     # verbose=True,
 )
 
