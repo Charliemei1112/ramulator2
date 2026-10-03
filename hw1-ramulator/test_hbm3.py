@@ -13,7 +13,7 @@ NUM_SIDS = 2 #from spec
 
 # Configure the frontend: random probes plus sequential background traffic.
 frontend = ramulator.frontend.LatencyThroughputTrace(
-    clock_ratio=29, # has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
+    clock_ratio=15, # has 2GHz channels, controller set to be 6.3*8 = 28.8GHz
     nop_counter=NOP_COUNTER,  # Sweeping Variable
     
     latency_sample_count=PROBE_REQUESTS,
