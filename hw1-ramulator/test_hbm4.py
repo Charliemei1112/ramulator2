@@ -8,6 +8,8 @@ import csv
 NOP_COUNTER_VALUES = [1,2,3,4,5,6,7,8,9,10,12,15,20,50,100,500,1000,10000,100000]
 PROBE_REQUESTS = 20_000
 WARMUP_CYCLES = 10_000
+BANK = 8
+BANKGROUP = 2
 NUM_CHANNELS = 32 # typical for HBM4
 NUM_PSEUDO = 2 # typical, from spec
 NUM_SIDS = 2 #from spec
@@ -19,20 +21,20 @@ def sweep(nop_counter=1):
 
     # Configure the frontend: random probes plus sequential background traffic.
     frontend = ramulator.frontend.LatencyThroughputTrace(
-        clock_ratio=15, # has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
+        clock_ratio=16, # has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
         nop_counter=nop_counter,  # Sweeping Variable
     
         latency_sample_count=PROBE_REQUESTS,
         warmup_cycles=WARMUP_CYCLES,
-        stream_cls=64,
+        stream_cls=32,
         stagger_stream_rows=True,
 
         # Layout for HBM4
         # Hierarchy: Channel, PseudoChannel, Sid, BankGroup, Bank, Row, Column.
         addr_vec_size=7,
         bank_positions=[4, 3, 2, 1, 0],                                     # Bank, BankGroup, Sid, PseudoChannel, Channel
-        bank_counts=[8, 2, NUM_SIDS, NUM_PSEUDO, NUM_CHANNELS],             # bank, bankgroup, sid, pseudochannels, channel in org_preset
-        total_bank_units=2 * 8 * NUM_CHANNELS * NUM_PSEUDO * NUM_SIDS,      # total banks: bank * bankgroup * num_channels * num_pseudo * num_sids
+        bank_counts=[BANK, BANKGROUP, NUM_SIDS, NUM_PSEUDO, NUM_CHANNELS],             # bank, bankgroup, sid, pseudochannels, channel in org_preset
+        total_bank_units=BANK * BANKGROUP * NUM_CHANNELS * NUM_PSEUDO * NUM_SIDS,      # total banks: bank * bankgroup * num_channels * num_pseudo * num_sids
         row_pos=5,
         col_pos=6,
         num_rows=1<<14,                                                     # number of rows 2^14 = 16384

@@ -8,6 +8,8 @@ import csv
 NOP_COUNTER_VALUES = [1,2,3,4,5,6,7,8,9,10,12,15,20,50,100,500,1000,10000,100000]
 PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
+BANK = 2
+BANKGROUP = 4
 NUM_CHANNELS = 8 # R9 Fury uses 4 stacks of 8 channels
 MIN_REFRESH_INTERVALS = 100
 
@@ -16,7 +18,7 @@ def sweep(nop_counter=1):
 
     # Configure the frontend: random probes plus sequential background traffic.
     frontend = ramulator.frontend.LatencyThroughputTrace(
-        clock_ratio=58, # R9 has 500MHz channels, controller set to be 6.3*8 = 28.8GHz
+        clock_ratio=16, # R9 has 500MHz channels, controller set to be 6.3*8 = 28.8GHz
         nop_counter=nop_counter,  # Sweeping Variable
         latency_sample_count=PROBE_REQUESTS,
         warmup_cycles=WARMUP_CYCLES,
@@ -27,8 +29,8 @@ def sweep(nop_counter=1):
         # Hierarchy: Channel, BankGroup, Bank, Row, Column.
         addr_vec_size=5,
         bank_positions=[2, 1, 0],                   # Bank, BankGroup, Channel
-        bank_counts=[2, 4, NUM_CHANNELS],           # bank, bankgroup, channel in org_preset
-        total_bank_units=2 * 4 * NUM_CHANNELS,      # total banks: bank * bankgroup * num_channels
+        bank_counts=[BANK, BANKGROUP, NUM_CHANNELS],           # bank, bankgroup, channel in org_preset
+        total_bank_units=BANK * BANKGROUP * NUM_CHANNELS,      # total banks: bank * bankgroup * num_channels
         row_pos=3,
         col_pos=4,
         num_rows=1<<14,                             # number of rows 2^14 = 16384
@@ -40,7 +42,7 @@ def sweep(nop_counter=1):
     # Configure HBM1
     hbm1 = ramulator.dram.HBM1(
         org_preset="HBM1_2Gb",
-        timing_preset="HBM1_1Gbps",
+        timing_preset="HBM1_2Gbps",
     )
 
     # Configure the memory controller.
