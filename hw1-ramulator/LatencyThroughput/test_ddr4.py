@@ -31,15 +31,15 @@ def sweep(nop_counter=1):
         # Layout for DDR4_8Gb_x8, one rank per channel.
         # Level: Channel, Rank, BankGroup, Bank, Row, Column.
         addr_vec_size=6,
-        bank_positions=[1, 3, 2, 0],                    # Rank, Bank, BankGroup, Channel
-        bank_counts=[RANK, BANK, BANKGROUP, NUM_CHANNELS],         # rank, bank, bankgroup, channel in org_preset
-        total_bank_units=RANK * BANK * BANKGROUP * NUM_CHANNELS,   # total banks: rank * bank * bankgroup * num_channels
+        bank_positions=[1, 3, 2, 0],                                # Rank, Bank, BankGroup, Channel
+        bank_counts=[RANK, BANK, BANKGROUP, NUM_CHANNELS],          # rank, bank, bankgroup, channel in org_preset
+        total_bank_units=RANK * BANK * BANKGROUP * NUM_CHANNELS,    # total banks: rank * bank * bankgroup * num_channels
         row_pos=4,
         col_pos=5,
-        num_rows=1 << 16,                               # 65536 rows
-        num_cols=1 << 10,                               # number of columns: 2^10 = 1024
-        internal_prefetch_size=8,                       # Defined in class DDR4
-        num_cls=128,                                    # 1024 // 8 = 128
+        num_rows=1 << 16,                                           # 65536 rows
+        num_cols=1 << 10,                                           # number of columns: 2^10 = 1024
+        internal_prefetch_size=8,                                   # Defined in class DDR4
+        num_cls=128,                                                # 1024 // 8 = 128
     )
 
     # Configure DDR4.
