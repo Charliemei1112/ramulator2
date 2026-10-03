@@ -51,7 +51,7 @@ sim.run()
 # Read and print stats
 stats = sim.stats
 if stats:
-    print("\n" + "="*20 + " EXPERIMENT 2.2-1 RESULTS " + "="*20)
+    print("\n" + "="*20 + " EXPERIMENT 2.2-1 RESULTS HBM1 " + "="*20)
     
     # total simulated cycles / time
     controllers = stats.get("memory_system", {}).get("controller", {})
