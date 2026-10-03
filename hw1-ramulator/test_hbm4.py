@@ -7,13 +7,13 @@ NOP_COUNTER = 1       # Larger values reduce background traffic pressure.
 # READ_RATIO = 100      # Background traffic: 100% reads.
 PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
-NUM_CHANNELS = 16 # typical for HBM3
+NUM_CHANNELS = 32 # typical for HBM4
 NUM_PSEUDO = 2 # typical, from spec
 NUM_SIDS = 2 #from spec
 
 # Configure the frontend: random probes plus sequential background traffic.
 frontend = ramulator.frontend.LatencyThroughputTrace(
-    clock_ratio=20, # has 1.5GHz channels, controller set to be 6.3*8 = 28.8GHz
+    clock_ratio=15, # has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
     nop_counter=NOP_COUNTER,  # Sweeping Variable
     
     latency_sample_count=PROBE_REQUESTS,
@@ -21,12 +21,12 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
     stream_cls=64,
     stagger_stream_rows=True,
 
-    # Layout for HBM3
+    # Layout for HBM4
     # Hierarchy: Channel, PseudoChannel, Sid, BankGroup, Bank, Row, Column.
     addr_vec_size=7,
     bank_positions=[4, 3, 2, 1, 0],     # Bank, BankGroup, Sid, PseudoChannel, Channel
-    bank_counts=[4, 4, NUM_SIDS, NUM_PSEUDO, NUM_CHANNELS],        # bank, bankgroup, sid, pseudochannels, channel in org_preset
-    total_bank_units=4 * 4 * NUM_CHANNELS * NUM_PSEUDO * NUM_SIDS,          # total banks: bank * bankgroup * num_channels * num_pseudo * num_sids
+    bank_counts=[8, 2, NUM_SIDS, NUM_PSEUDO, NUM_CHANNELS],        # bank, bankgroup, sid, pseudochannels, channel in org_preset
+    total_bank_units=2 * 8 * NUM_CHANNELS * NUM_PSEUDO * NUM_SIDS,          # total banks: bank * bankgroup * num_channels * num_pseudo * num_sids
     row_pos=5,
     col_pos=6,
     num_rows=1<<14,             # number of rows 2^14 = 16384
@@ -36,15 +36,15 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
 )
 
 # Configure
-hbm3 = ramulator.dram.HBM3(
-    org_preset="HBM3_16Gb_8hi",
-    timing_preset="HBM3_6400Mbps",
+hbm4 = ramulator.dram.HBM4(
+    org_preset="HBM4_32Gb_8Hi",
+    timing_preset="HBM4_8000Mbps",
     #using default configs
 )
 
 # Configure the memory controller.
 ctrl = ramulator.controller.HBM34(
-    dram=hbm3,
+    dram=hbm4,
     scheduler=ramulator.scheduler.FRFCFSRowHit(),
     refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.ClosedCAP(), # closed more typical than open for HBM
@@ -73,7 +73,7 @@ if stats:
     if isinstance(controllers, dict):
         controllers = [controllers]
 
-    _, timing = hbm3.resolve()
+    _, timing = hbm4.resolve()
     clock_period_ns = timing["tCK_ps"] / 1000.0
 
     # Average latency of the random read probes.

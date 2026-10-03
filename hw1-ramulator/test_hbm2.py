@@ -25,8 +25,8 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
     # Hierarchy: Channel, PseudoChannel, Sid, BankGroup, Bank, Row, Column.
     addr_vec_size=7,
     bank_positions=[4, 3, 2, 1, 0],     # Bank, BankGroup, Sid, PseudoChannel, Channel
-    bank_counts=[2, 4, NUM_SIDS, NUM_PSEUDO, NUM_CHANNELS],        # bank, bankgroup, sid, pseudochannels, channel in org_preset
-    total_bank_units=2 * 4 * NUM_CHANNELS * NUM_PSEUDO * NUM_SIDS,          # total banks: bank * bankgroup * num_channels * num_pseudo * num_sids
+    bank_counts=[4, 4, NUM_SIDS, NUM_PSEUDO, NUM_CHANNELS],        # bank, bankgroup, sid, pseudochannels, channel in org_preset
+    total_bank_units=4 * 4 * NUM_CHANNELS * NUM_PSEUDO * NUM_SIDS,          # total banks: bank * bankgroup * num_channels * num_pseudo * num_sids
     row_pos=5,
     col_pos=6,
     num_rows=1<<15,             # number of rows 2^14 = 16384
