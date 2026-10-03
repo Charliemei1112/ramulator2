@@ -1,5 +1,5 @@
 """DDR5 latency probes under sequential background traffic."""
-# based on specs of AMD Radeon R9 Fury series
+# use NVIDIA Tesla V100 GPU for reference
 
 import ramulator
 
@@ -7,11 +7,13 @@ NOP_COUNTER = 1       # Larger values reduce background traffic pressure.
 # READ_RATIO = 100      # Background traffic: 100% reads.
 PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
-NUM_CHANNELS = 8 # R9 Fury uses 4 stacks of 8 channels
+NUM_CHANNELS = 8 # typical for HBM2
+NUM_PSEUDO = 2 # typical
+NUM_SIDS = 1 #typical
 
 # Configure the frontend: random probes plus sequential background traffic.
 frontend = ramulator.frontend.LatencyThroughputTrace(
-    clock_ratio=58, # R9 has 500MHz channels, controller set to be 6.3*8 = 28.8GHz
+    clock_ratio=29, # R9 has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
     nop_counter=NOP_COUNTER,  # Sweeping Variable
     
     latency_sample_count=PROBE_REQUESTS,
@@ -19,33 +21,33 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
     stream_cls=64,
     stagger_stream_rows=True,
 
-    # Layout for DDR5_16Gb_x8, rank=1.
-    # Hierarchy: Channel, Rank, BankGroup, Bank, Row, Column.
-    addr_vec_size=5,
-    bank_positions=[2, 1, 0],     # Bank, BankGroup, Channel
-    bank_counts=[2, 4, NUM_CHANNELS],        # bank, bankgroup, channel in org_preset
-    total_bank_units=2 * 4 * NUM_CHANNELS,          # total banks: bank * bankgroup * num_channels
-    row_pos=3,
-    col_pos=4,
-    num_rows=1<<14,             # number of rows 2^14 = 16384
-    num_cols=(1<<6) << 1,             # number of cols (2^6)*2 = 128
-    internal_prefetch_size=2,    # internal prefetch size, defined in class
+    # Layout for HBM2
+    # Hierarchy: Channel, PseudoChannel, Sid, BankGroup, Bank, Row, Column.
+    addr_vec_size=7,
+    bank_positions=[4, 3, 2, 1, 0],     # Bank, BankGroup, Sid, PseudoChannel, Channel
+    bank_counts=[2, 4, NUM_SIDS, NUM_PSEUDO, NUM_CHANNELS],        # bank, bankgroup, sid, pseudochannels, channel in org_preset
+    total_bank_units=2 * 4 * NUM_CHANNELS * NUM_PSEUDO * NUM_SIDS,          # total banks: bank * bankgroup * num_channels * num_pseudo * num_sids
+    row_pos=5,
+    col_pos=6,
+    num_rows=1<<15,             # number of rows 2^14 = 16384
+    num_cols=(1<<5) << 2,             # number of cols (2^5)*4 = 128
+    internal_prefetch_size=4,    # internal prefetch size, defined in class
     num_cls=64,                   # num_cols / internal_prefetch_size
 )
 
 # Configure
-hbm1 = ramulator.dram.HBM1(
-    org_preset="HBM1_2Gb",
-    timing_preset="HBM1_1Gbps",
+hbm2 = ramulator.dram.HBM2(
+    org_preset="HBM2_2Gb",
+    timing_preset="HBM2_2000Mbps",
     #using default configs
 )
 
 # Configure the memory controller.
 ctrl = ramulator.controller.HBM12(
-    dram=hbm1,
+    dram=hbm2,
     scheduler=ramulator.scheduler.FRFCFSRowHit(),
     refresh_manager=ramulator.refresh_manager.AllBank(),
-    row_policy=ramulator.row_policy.ClosedCAP(), # closed mor typical than open for HBM
+    row_policy=ramulator.row_policy.ClosedCAP(), # closed more typical than open for HBM
     addr_mapper=ramulator.addr_mapper.PassThroughAddrMapper(),
 )
 
@@ -71,7 +73,7 @@ if stats:
     if isinstance(controllers, dict):
         controllers = [controllers]
 
-    _, timing = hbm1.resolve()
+    _, timing = hbm2.resolve()
     clock_period_ns = timing["tCK_ps"] / 1000.0
 
     # Average latency of the random read probes.
