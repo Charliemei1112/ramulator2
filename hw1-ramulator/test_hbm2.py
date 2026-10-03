@@ -8,12 +8,12 @@ NOP_COUNTER = 1       # Larger values reduce background traffic pressure.
 PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
 NUM_CHANNELS = 8 # typical for HBM2
-NUM_PSEUDO = 2 # typical
-NUM_SIDS = 1 #typical
+NUM_PSEUDO = 2 # typical, from spec
+NUM_SIDS = 1 #from spec
 
 # Configure the frontend: random probes plus sequential background traffic.
 frontend = ramulator.frontend.LatencyThroughputTrace(
-    clock_ratio=29, # R9 has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
+    clock_ratio=29, # has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
     nop_counter=NOP_COUNTER,  # Sweeping Variable
     
     latency_sample_count=PROBE_REQUESTS,
@@ -32,7 +32,7 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
     num_rows=1<<15,             # number of rows 2^14 = 16384
     num_cols=(1<<5) << 2,             # number of cols (2^5)*4 = 128
     internal_prefetch_size=4,    # internal prefetch size, defined in class
-    num_cls=64,                   # num_cols / internal_prefetch_size
+    num_cls=32,                   # num_cols / internal_prefetch_size
 )
 
 # Configure
@@ -55,7 +55,7 @@ ctrl = ramulator.controller.HBM12(
 # Pass-through mapping preserves the frontend's DRAM address vectors.
 mem = ramulator.memory_system.GenericDRAM(
     clock_ratio=1,
-    controllers=[ctrl] * NUM_CHANNELS,
+    controllers=[ctrl] * NUM_CHANNELS * NUM_PSEUDO,
     channel_mapper=ramulator.channel_mapper.PassThroughChannelMapper(),
 )
 
