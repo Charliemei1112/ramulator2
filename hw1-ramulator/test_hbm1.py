@@ -1,58 +1,54 @@
-"""DDR3 latency probes under sequential background traffic, with refresh enabled."""
+"""HBM1 latency probes under sequential background traffic."""
+# based on specs of AMD Radeon R9 Fury series
 
 import ramulator
 import time
 import csv
 
-NOP_COUNTER_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 50, 100, 500, 1000, 10000, 100000]
-
-PROBE_REQUESTS = 20_000
+NOP_COUNTER_VALUES = [1,2,3,4,5,6,7,8,9,10,12,15,20,50,100,500,1000,10000,100000]
+PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
+NUM_CHANNELS = 8 # R9 Fury uses 4 stacks of 8 channels
 MIN_REFRESH_INTERVALS = 100
-
-RANK = 1
-NUM_CHANNELS = 1  # One 64-bit channel.
-
 
 def sweep(nop_counter=1):
     print(f"===== nop_counter={nop_counter} =====")
 
     # Configure the frontend: random probes plus sequential background traffic.
     frontend = ramulator.frontend.LatencyThroughputTrace(
-        clock_ratio=8,
+        clock_ratio=58, # R9 has 500MHz channels, controller set to be 6.3*8 = 28.8GHz
         nop_counter=nop_counter,  # Sweeping Variable
         latency_sample_count=PROBE_REQUESTS,
         warmup_cycles=WARMUP_CYCLES,
         stream_cls=64,
         stagger_stream_rows=True,
 
-        # Layout for DDR3_4Gb_x8, one rank per channel.
-        # Level: Channel, Rank, Bank, Row, Column.
+        # Layout for HBM1_2Gb
+        # Hierarchy: Channel, BankGroup, Bank, Row, Column.
         addr_vec_size=5,
-        bank_positions=[1, 2, 0],                       # Rank, Bank, Channel
-        bank_counts=[RANK, 8, NUM_CHANNELS],            # Rank, Bank, Channel
-        total_bank_units=RANK * 8 * NUM_CHANNELS,       # Total banks across channels
+        bank_positions=[2, 1, 0],                   # Bank, BankGroup, Channel
+        bank_counts=[2, 4, NUM_CHANNELS],           # bank, bankgroup, channel in org_preset
+        total_bank_units=2 * 4 * NUM_CHANNELS,      # total banks: bank * bankgroup * num_channels
         row_pos=3,
         col_pos=4,
-        num_rows=1 << 16,                               # number of rows： 2^16 = 65536
-        num_cols=1 << 10,                               # number of columns: 2^10 = 1024, 1024 * 8 = 8192
-        internal_prefetch_size=8,                       # Defined in class DDR3
-        num_cls=128,                                    # 1024 // 8 = 128
+        num_rows=1<<14,                             # number of rows 2^14 = 16384
+        num_cols=(1<<6) << 1,                       # number of cols (2^6)*2 = 128
+        internal_prefetch_size=2,                   # internal prefetch size, defined in class
+        num_cls=64,                                 # num_cols // internal_prefetch_size
     )
 
-    # Configure DDR3.
-    ddr3 = ramulator.dram.DDR3(
-        org_preset="DDR3_4Gb_x8",
-        timing_preset="DDR3_1333H",
-        rank=RANK,
+    # Configure HBM1
+    hbm1 = ramulator.dram.HBM1(
+        org_preset="HBM1_2Gb",
+        timing_preset="HBM1_1Gbps",
     )
 
     # Configure the memory controller.
-    ctrl = ramulator.controller.GenericDDR(
-        dram=ddr3,
+    ctrl = ramulator.controller.HBM12(
+        dram=hbm1,
         scheduler=ramulator.scheduler.FRFCFSRowHit(),
         refresh_manager=ramulator.refresh_manager.AllBank(),
-        row_policy=ramulator.row_policy.Open(),
+        row_policy=ramulator.row_policy.ClosedCAP(), # closed mor typical than open for HBM
         addr_mapper=ramulator.addr_mapper.PassThroughAddrMapper(),
     )
 
@@ -68,7 +64,7 @@ def sweep(nop_counter=1):
     sim = ramulator.Simulation(frontend, mem)
     sim.run()
 
-    # Read statistics.
+    # Read and print statistics.
     stats = sim.stats
     frontend_stats = stats["frontend"]
     controllers = stats["memory_system"]["controller"]
@@ -76,15 +72,17 @@ def sweep(nop_counter=1):
     if isinstance(controllers, dict):
         controllers = [controllers]
 
-    _, timing = ddr3.resolve()
+    _, timing = hbm1.resolve()
     clock_period_ns = timing["tCK_ps"] / 1000.0
 
+    # Average latency of the random read probes.
     latency_cycles = frontend_stats["avg_probe_latency"]
     latency_ns = latency_cycles * clock_period_ns
 
+    # Aggregate achieved throughput across all modeled channels.
     throughput_gbps = sum(controller["total_throughput_MBps"] for controller in controllers) / 1000.0
 
-    # Controller cycles already exclude warmup in this implementation.
+    # Controllers share the same clock; elapsed cycles are not summed.
     cycles = controllers[0]["cycles"]
     measured_time_ms = cycles * clock_period_ns / 1_000_000
 
@@ -98,7 +96,6 @@ def sweep(nop_counter=1):
 
     # Verify refresh coverage separately for every channel.
     refresh_intervals = []
-
     for channel, controller in enumerate(controllers):
         intervals = controller["cycles"] / timing["nREFI"]
         refresh_intervals.append(intervals)
@@ -134,7 +131,7 @@ if __name__ == "__main__":
         results.append(result)
         print(f"Run time:                 {run_end - run_start:.2f} seconds\n")
 
-    export_csv(results, "test_ddr3.csv")
+    export_csv(results, "test_hbm1.csv")
 
     sweep_end = time.time()
     print(f"\nTotal sweep time: {sweep_end - sweep_start:.2f} seconds\n")
