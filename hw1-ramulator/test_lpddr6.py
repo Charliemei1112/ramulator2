@@ -1,5 +1,5 @@
 """DDR5 latency probes under sequential background traffic."""
-# use Qualcomm Snapdragon 8 Gen 1 for reference
+# use Qualcomm Snapdragon 8 Elite Gen 6 for reference
 
 import ramulator
 
@@ -7,14 +7,14 @@ NOP_COUNTER = 120       # Larger values reduce background traffic pressure.
 # READ_RATIO = 100      # Background traffic: 100% reads.
 PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
-NUM_CHANNELS = 2 # typical for LPDDR5
+NUM_CHANNELS = 2 # typical for LPDDR6
 NUM_RANK = 1
 NUM_BANK = 4
 NUM_BG = 4
 
 # Configure the frontend: random probes plus sequential background traffic.
 frontend = ramulator.frontend.LatencyThroughputTrace(
-    clock_ratio=36, # 28.8 vs. 800M
+    clock_ratio=11, # 2.7G vs 28.8
     nop_counter=NOP_COUNTER,  # Sweeping Variable
     
     latency_sample_count=PROBE_REQUESTS,
@@ -22,7 +22,7 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
     stream_cls=64,
     stagger_stream_rows=True,
 
-    # Layout for HBM3
+    # Layout for LPDDR6
     # Hierarchy: Channel, Rank, BankGroup, Bank, Row, Column.
     addr_vec_size=6,
     bank_positions=[3, 2, 1, 0],     # Bank, BankGroup, Rank, Channel
@@ -30,22 +30,22 @@ frontend = ramulator.frontend.LatencyThroughputTrace(
     total_bank_units=NUM_BG * NUM_BANK * NUM_CHANNELS * NUM_RANK,          # total banks: rank * bank * bankgroup * num_channels
     row_pos=4,
     col_pos=5,
-    num_rows=1<<15,             # number of rows 
-    num_cols=1<<10,             # number of cols 
+    num_rows=1<<16,             # number of rows 2^14 = 16384
+    num_cols=1<<10,             # number of cols (2^5)*8 = 256
     internal_prefetch_size=16,    # internal prefetch size, defined in class
     num_cls=64,                   # num_cols / internal_prefetch_size
 )
 
 # Configure
-lpddr5 = ramulator.dram.LPDDR5(
-    org_preset="LPDDR5_8Gb_x16",
-    timing_preset="LPDDR5_6400",
+lpddr6 = ramulator.dram.LPDDR6(
+    org_preset="LPDDR6_16Gb_x12",
+    timing_preset="LPDDR6_10667_BL24",
     #using default configs
 )
 
 # Configure the memory controller.
-ctrl = ramulator.controller.LPDDR5(
-    dram=lpddr5,
+ctrl = ramulator.controller.LPDDR6(
+    dram=lpddr6,
     scheduler=ramulator.scheduler.FRFCFSRowHit(),
     refresh_manager=ramulator.refresh_manager.AllBank(),
     row_policy=ramulator.row_policy.ClosedCAP(), # somewhat more typical for LPDDR
@@ -74,7 +74,7 @@ if stats:
     if isinstance(controllers, dict):
         controllers = [controllers]
 
-    _, timing = lpddr5.resolve()
+    _, timing = lpddr6.resolve()
     clock_period_ns = timing["tCK_ps"] / 1000.0
 
     # Average latency of the random read probes.
