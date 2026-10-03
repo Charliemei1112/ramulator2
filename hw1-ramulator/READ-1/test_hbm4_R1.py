@@ -1,10 +1,14 @@
-"""DDR5 latency probes under sequential background traffic."""
-# based on specs of AMD Radeon R9 Fury series
+"""HBM4 latency probes under sequential background traffic."""
+# NVIDIA Next Generation Vera Rubin Platform
 
 import ramulator
+import time
+import csv
 import os
 
-NUM_CHANNELS = 8 # R9 Fury uses 4 stacks of 8 channels
+NUM_CHANNELS = 32 # typical for HBM4
+NUM_PSEUDO = 2 # typical, from spec
+
 CACHELINE_SIZE = 32 # may replace later with cachelinesize
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,37 +18,39 @@ if CACHELINE_SIZE == 32:
 else:
     TRACE = os.path.join(script_dir, "read_1_64.trace")
 
-# Configure the frontend: random probes plus sequential background traffic.
+    # Configure the frontend: random probes plus sequential background traffic.
 frontend = ramulator.frontend.LoadStoreTrace(
-    clock_ratio=16, # standard from test
-    path = TRACE,
-)
+        clock_ratio=16, # has 1GHz channels, controller set to be 6.3*8 = 28.8GHz
+        path = TRACE,                                                      # num_cols // internal_prefetch_size
+    )
 
-# Configure
-hbm1 = ramulator.dram.HBM1(
-    org_preset="HBM1_2Gb",
-    timing_preset="HBM1_1Gbps",
-    #using default configs
-)
+    # Configure
+hbm4 = ramulator.dram.HBM4(
+        org_preset="HBM4_32Gb_8Hi",
+        timing_preset="HBM4_8000Mbps",
+        #using default configs
+    )
 
-# Configure the memory controller.
-ctrl = ramulator.controller.HBM12(
-    dram=hbm1,
-    scheduler=ramulator.scheduler.FRFCFSRowHit(),
-    refresh_manager=ramulator.refresh_manager.AllBank(),
-    row_policy=ramulator.row_policy.ClosedCAP(), # closed mor typical than open for HBM
-    addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(), # avoid seg fault
-)
+    # Configure the memory controller.
+ctrl = ramulator.controller.HBM34(
+        dram=hbm4,
+        scheduler=ramulator.scheduler.FRFCFSRowHit(),
+        refresh_manager=ramulator.refresh_manager.AllBank(),
+        row_policy=ramulator.row_policy.ClosedCAP(), # closed more typical than open for HBM
+        addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
+    )
 
-# Configure the memory system.
-# Pass-through mapping preserves the frontend's DRAM address vectors.
+    # Configure the memory system.
+    # Pass-through mapping preserves the frontend's DRAM address vectors.
 mem = ramulator.memory_system.GenericDRAM(
-    clock_ratio=1,
-    controllers=[ctrl] * NUM_CHANNELS,
-    channel_mapper=ramulator.channel_mapper.CacheLineInterleave(), #avoid seg fault
-)
+        clock_ratio=1,
+        controllers=[ctrl] * NUM_CHANNELS * NUM_PSEUDO,
+        channel_mapper=ramulator.channel_mapper.CacheLineInterleave(),
+    )
 
-# Run the simulation.
+ 
+
+    # Run the simulation.
 sim = ramulator.Simulation(frontend, mem)
 sim.run()
 
