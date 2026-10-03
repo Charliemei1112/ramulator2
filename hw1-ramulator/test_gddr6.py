@@ -8,6 +8,8 @@ NOP_COUNTER_VALUES = [1,2,3,4,5,6,7,8,9,10,12,15,20,50,100,500,1000,10000,100000
 
 PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
+BANK = 4
+BANKGROUP = 4
 NUM_CHANNELS = 8  # 128-bit, Nvidia GTX 4060
 MIN_REFRESH_INTERVALS = 100
 
@@ -16,7 +18,7 @@ def sweep(nop_counter=1):
 
     # Configure the frontend: random probes plus sequential background traffic.
     frontend = ramulator.frontend.LatencyThroughputTrace(
-        clock_ratio=8,
+        clock_ratio=16,
         nop_counter=nop_counter,  # Sweeping Variable
         latency_sample_count=PROBE_REQUESTS,
         warmup_cycles=WARMUP_CYCLES,
@@ -27,14 +29,14 @@ def sweep(nop_counter=1):
         # Hierarchy: Channel, BankGroup, Bank, Row, Column.
         addr_vec_size=5,
         bank_positions=[2, 1, 0],                 # Bank, BankGroup, Channel
-        bank_counts=[4, 4, NUM_CHANNELS],         # Bank, BankGroup, Channel in org_preset
-        total_bank_units=4 * 4 * NUM_CHANNELS,    # Total banks across channels
+        bank_counts=[BANK, BANKGROUP, NUM_CHANNELS],         # Bank, BankGroup, Channel in org_preset
+        total_bank_units=BANK * BANKGROUP * NUM_CHANNELS,    # Total banks across channels
         row_pos=3,
         col_pos=4,
         num_rows=1 << 14,                         # Number of rows: 2^14 = 16384
         num_cols=1 << 10,                         # Number of columns: 2^10 = 1024
-        internal_prefetch_size=16,               # Defined in class GDDR6
-        num_cls=64,                              # num_cols // internal_prefetch_size
+        internal_prefetch_size=16,                # Defined in class GDDR6
+        num_cls=64,                               # num_cols // internal_prefetch_size
     )
 
     # Configure GDDR6.

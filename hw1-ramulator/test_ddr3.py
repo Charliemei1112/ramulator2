@@ -11,6 +11,7 @@ WARMUP_CYCLES = 10_000
 MIN_REFRESH_INTERVALS = 100
 
 RANK = 1
+BANK = 8
 NUM_CHANNELS = 1  # One 64-bit channel.
 
 
@@ -23,18 +24,18 @@ def sweep(nop_counter=1):
         nop_counter=nop_counter,  # Sweeping Variable
         latency_sample_count=PROBE_REQUESTS,
         warmup_cycles=WARMUP_CYCLES,
-        stream_cls=64,
+        stream_cls=128,
         stagger_stream_rows=True,
 
-        # Layout for DDR3_4Gb_x8, one rank per channel.
+        # Layout for DDR3_2Gb_x8, one rank per channel.
         # Level: Channel, Rank, Bank, Row, Column.
         addr_vec_size=5,
         bank_positions=[1, 2, 0],                       # Rank, Bank, Channel
-        bank_counts=[RANK, 8, NUM_CHANNELS],            # Rank, Bank, Channel
-        total_bank_units=RANK * 8 * NUM_CHANNELS,       # Total banks across channels
+        bank_counts=[RANK, BANK, NUM_CHANNELS],            # Rank, Bank, Channel
+        total_bank_units=RANK * BANK * NUM_CHANNELS,       # Total banks across channels
         row_pos=3,
         col_pos=4,
-        num_rows=1 << 16,                               # number of rows： 2^16 = 65536
+        num_rows=1 << 15,                               # number of rows： 2^15 = 32768
         num_cols=1 << 10,                               # number of columns: 2^10 = 1024, 1024 * 8 = 8192
         internal_prefetch_size=8,                       # Defined in class DDR3
         num_cls=128,                                    # 1024 // 8 = 128
@@ -42,8 +43,8 @@ def sweep(nop_counter=1):
 
     # Configure DDR3.
     ddr3 = ramulator.dram.DDR3(
-        org_preset="DDR3_4Gb_x8",
-        timing_preset="DDR3_1333H",
+        org_preset="DDR3_2Gb_x8",
+        timing_preset="DDR3_1600H",
         rank=RANK,
     )
 

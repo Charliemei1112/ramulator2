@@ -1,19 +1,17 @@
-"""DDR5 latency probes under sequential background traffic, with refresh enabled."""
+"""GDDR7 latency probes under sequential background traffic."""
+# NVIDIA GeForce RTX 5070 Ti
 
 import ramulator
 import time
 import csv
 
-NOP_COUNTER_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 50, 100, 500, 1000, 10000, 100000]
+NOP_COUNTER_VALUES = [1,2,3,4,5,6,7,8,9,10,12,15,20,50,100,500,1000,10000,100000]
 
 PROBE_REQUESTS = 10_000
 WARMUP_CYCLES = 10_000
+BANK = 16
+NUM_CHANNELS = 32  # 32 × 8-bit channels = 256-bit interface.
 MIN_REFRESH_INTERVALS = 100
-
-RANK = 1
-BANK = 4
-BANKGROUP = 8
-NUM_CHANNELS = 2  # Four 32-bit subchannels across two physical DDR5 channels.
 
 
 def sweep(nop_counter=1):
@@ -21,38 +19,36 @@ def sweep(nop_counter=1):
 
     # Configure the frontend: random probes plus sequential background traffic.
     frontend = ramulator.frontend.LatencyThroughputTrace(
-        clock_ratio=8,
+        clock_ratio=16,  # Injection headroom for 32 channels; verify saturation.
         nop_counter=nop_counter,  # Sweeping Variable
         latency_sample_count=PROBE_REQUESTS,
         warmup_cycles=WARMUP_CYCLES,
         stream_cls=64,
         stagger_stream_rows=True,
 
-        # Layout for DDR5_16Gb_x8, two ranks per channel.
-        # Level: Channel, Rank, BankGroup, Bank, Row, Column.
-        addr_vec_size=6,
-        bank_positions=[1, 3, 2, 0],                                # Rank, Bank, BankGroup, Channel
-        bank_counts=[RANK, BANK, BANKGROUP, NUM_CHANNELS],          # rank, bank, bankgroup, channel in org_preset
-        total_bank_units=RANK * BANK * BANKGROUP * NUM_CHANNELS,    # total banks: rank * bank * bankgroup * num_channels
-        row_pos=4,
-        col_pos=5,
-        num_rows=1 << 16,                                           # number of rows： 2^16 = 65536
-        num_cols=1 << 10,                                           # number of columns: 2^10 = 1024, 1024 * 8 = 8192
-        internal_prefetch_size=16,                                  # internal prefetch size: 16, defined in class DDR5
-        num_cls=64,                                                 # num_cols // internal_prefetch_size = 1024 // 16 = 64
+        # Layout for GDDR7_16Gb_x8
+        # Hierarchy: Channel, Bank, Row, Column.
+        addr_vec_size=4,
+        bank_positions=[1, 0],                   # Bank, Channel
+        bank_counts=[BANK, NUM_CHANNELS],
+        total_bank_units=BANK * NUM_CHANNELS,    # BANK * NUM_CHANNELS
+        row_pos=2,
+        col_pos=3,
+        num_rows=1 << 14,                        # Number of rows: 2^14 = 16384
+        num_cols=(1 << 6) << 5,                  # Number of columns: 2048
+        internal_prefetch_size=32,               # Defined in class GDDR7
+        num_cls=64,                              # num_cols // internal_prefetch_size
     )
 
-    # Configure DDR5.
-    ddr5 = ramulator.dram.DDR5(
-        org_preset="DDR5_16Gb_x8",      
-        timing_preset="DDR5_4800AN",    # 4800MT/s
-        rank=RANK,                     
-        # verbose="True",
+    # Configure GDDR7.
+    gddr7 = ramulator.dram.GDDR7(
+        org_preset="GDDR7_16Gb_x8",        # 16Gb device, four 8-bit channels
+        timing_preset="GDDR7_28000_PAM3",  # 28 Gb/s; preset command timings
     )
 
     # Configure the memory controller.
-    ctrl = ramulator.controller.GenericDDR(
-        dram=ddr5,
+    ctrl = ramulator.controller.GDDR7(
+        dram=gddr7,
         scheduler=ramulator.scheduler.FRFCFSRowHit(),
         refresh_manager=ramulator.refresh_manager.AllBank(),
         row_policy=ramulator.row_policy.Open(),
@@ -71,7 +67,7 @@ def sweep(nop_counter=1):
     sim = ramulator.Simulation(frontend, mem)
     sim.run()
 
-    # Read statistics.
+    # Read and print statistics.
     stats = sim.stats
     frontend_stats = stats["frontend"]
     controllers = stats["memory_system"]["controller"]
@@ -79,29 +75,25 @@ def sweep(nop_counter=1):
     if isinstance(controllers, dict):
         controllers = [controllers]
 
-    _, timing = ddr5.resolve()
+    _, timing = gddr7.resolve()
     clock_period_ns = timing["tCK_ps"] / 1000.0
 
+    # Average latency of the random read probes.
     latency_cycles = frontend_stats["avg_probe_latency"]
     latency_ns = latency_cycles * clock_period_ns
 
+    # Aggregate achieved throughput across all modeled channels.
     throughput_gbps = sum(controller["total_throughput_MBps"] for controller in controllers) / 1000.0
 
-    # Controller cycles already exclude warmup in this implementation.
+    # Controllers share the same clock; elapsed cycles are not summed.
     cycles = controllers[0]["cycles"]
     measured_time_ms = cycles * clock_period_ns / 1_000_000
 
-    # print(f"Controller cycles:        {cycles}")
-    # print(f"Measured simulated time:  {measured_time_ms:.3f} ms")
-    # print(f"Completed latency probes: "f"{frontend_stats['probe_requests_completed']}")
-    # print(f"Probe latency:            {latency_cycles:.2f} cycles")
     print(f"Probe latency:            {latency_ns:.2f} ns")
     print(f"Total throughput:         {throughput_gbps:.3f} GB/s")
-    # print(f"Background requests sent: {frontend_stats['streaming_requests_sent']}")
 
     # Verify refresh coverage separately for every channel.
     refresh_intervals = []
-    # refresh_requests_served = []
 
     for channel, controller in enumerate(controllers):
         intervals = controller["cycles"] / timing["nREFI"]
@@ -138,7 +130,7 @@ if __name__ == "__main__":
         results.append(result)
         print(f"Run time:                 {run_end - run_start:.2f} seconds\n")
 
-    export_csv(results, "test_ddr5.csv")
+    export_csv(results, "test_gddr7.csv")
 
     sweep_end = time.time()
     print(f"\nTotal sweep time: {sweep_end - sweep_start:.2f} seconds\n")

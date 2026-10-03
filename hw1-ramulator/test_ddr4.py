@@ -11,6 +11,8 @@ WARMUP_CYCLES = 10_000
 MIN_REFRESH_INTERVALS = 100
 
 RANK = 1
+BANK = 4
+BANKGROUP = 4
 NUM_CHANNELS = 1  # One 64-bit channel.
 
 
@@ -23,27 +25,27 @@ def sweep(nop_counter=1):
         nop_counter=nop_counter,  # Sweeping Variable
         latency_sample_count=PROBE_REQUESTS,
         warmup_cycles=WARMUP_CYCLES,
-        stream_cls=64,
+        stream_cls=128,
         stagger_stream_rows=True,
 
-        # Layout for DDR4_16Gb_x8, one rank per channel.
+        # Layout for DDR4_8Gb_x8, one rank per channel.
         # Level: Channel, Rank, BankGroup, Bank, Row, Column.
         addr_vec_size=6,
         bank_positions=[1, 3, 2, 0],                    # Rank, Bank, BankGroup, Channel
-        bank_counts=[RANK, 4, 4, NUM_CHANNELS],         # rank, bank, bankgroup, channel in org_preset
-        total_bank_units=RANK * 4 * 4 * NUM_CHANNELS,   # total banks: rank * bank * bankgroup * num_channels
+        bank_counts=[RANK, BANK, BANKGROUP, NUM_CHANNELS],         # rank, bank, bankgroup, channel in org_preset
+        total_bank_units=RANK * BANK * BANKGROUP * NUM_CHANNELS,   # total banks: rank * bank * bankgroup * num_channels
         row_pos=4,
         col_pos=5,
-        num_rows=1 << 17,                               # 131072 rows
+        num_rows=1 << 16,                               # 65536 rows
         num_cols=1 << 10,                               # number of columns: 2^10 = 1024
         internal_prefetch_size=8,                       # Defined in class DDR4
-        num_cls=128,                                   # 1024 // 8 = 128
+        num_cls=128,                                    # 1024 // 8 = 128
     )
 
     # Configure DDR4.
     ddr4 = ramulator.dram.DDR4(
-        org_preset="DDR4_16Gb_x8",
-        timing_preset="DDR4_3200AA",
+        org_preset="DDR4_8Gb_x8",
+        timing_preset="DDR4_2400R",
         rank=RANK,
     )
 
