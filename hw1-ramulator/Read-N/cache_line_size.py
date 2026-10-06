@@ -19,4 +19,4 @@ for name in ramulator.dram.__all__:
 
     CACHE_LINE_SIZE[name] = size_bytes
 
-print(CACHE_LINE_SIZE)
+# print(CACHE_LINE_SIZE)

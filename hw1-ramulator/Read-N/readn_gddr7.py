@@ -1,13 +1,14 @@
-"""DDR3 latency probes under sequential background traffic, with refresh enabled."""
+"""DDR5 latency probes under sequential background traffic, with refresh enabled."""
 
 import ramulator
 import time
 import csv
+
 import cache_line_size
 import readn_dram as dram
 
-NUM_CHANNELS = 1  # One 64-bit channel.
-bytes = cache_line_size.CACHE_LINE_SIZE["DDR3"]
+NUM_CHANNELS = 8
+bytes = cache_line_size.CACHE_LINE_SIZE["GDDR7"]
 print(bytes)
 
 def read_n(n=1):
@@ -17,15 +18,15 @@ def read_n(n=1):
 
     # Configure the frontend: random probes plus sequential background traffic.
     frontend = ramulator.frontend.LoadStoreTrace(
-        clock_ratio=8,
+        clock_ratio=16,
         path=file_path,
     )
 
-    ddr3 = dram.ddr3
+    gddr7 = dram.gddr7
 
     # Configure the memory controller.
     ctrl = ramulator.controller.GenericDDR(
-        dram=ddr3,
+        dram=gddr7,
         scheduler=ramulator.scheduler.FRFCFSRowHit(),
         refresh_manager=ramulator.refresh_manager.AllBank(),
         row_policy=ramulator.row_policy.Open(),
@@ -54,7 +55,7 @@ def read_n(n=1):
     if isinstance(controllers, dict):
         controllers = [controllers]
 
-    _, timing = ddr3.resolve()
+    _, timing = gddr7.resolve()
     clock_period_ns = timing["tCK_ps"] / 1000.0 
 
     # Controllers run concurrently, so do not sum their cycles.
@@ -90,7 +91,7 @@ def read_n(n=1):
     print(f"Row Hit Rate:          {row_hit_rate:.3f}%")
 
     return {
-        "dram": "DDR3",
+        "dram": "GDDR7",
         "num_streams": n,
         "controller_cycles": cycles,
         "simulated_time_ms": simulated_time_ms,

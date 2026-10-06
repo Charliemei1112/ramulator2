@@ -1,4 +1,4 @@
-"""DDR3 latency probes under sequential background traffic, with refresh enabled."""
+"""DDR5 latency probes under sequential background traffic, with refresh enabled."""
 
 import ramulator
 import time
@@ -6,8 +6,9 @@ import csv
 import cache_line_size
 import readn_dram as dram
 
-NUM_CHANNELS = 1  # One 64-bit channel.
-bytes = cache_line_size.CACHE_LINE_SIZE["DDR3"]
+NUM_CHANNELS = 32
+NUM_PSEUDO = 2
+bytes = cache_line_size.CACHE_LINE_SIZE["HBM4"]
 print(bytes)
 
 def read_n(n=1):
@@ -17,15 +18,15 @@ def read_n(n=1):
 
     # Configure the frontend: random probes plus sequential background traffic.
     frontend = ramulator.frontend.LoadStoreTrace(
-        clock_ratio=8,
+        clock_ratio=16,
         path=file_path,
     )
 
-    ddr3 = dram.ddr3
+    hbm4 = dram.hbm4
 
     # Configure the memory controller.
-    ctrl = ramulator.controller.GenericDDR(
-        dram=ddr3,
+    ctrl = ramulator.controller.HBM34(
+        dram=hbm4,
         scheduler=ramulator.scheduler.FRFCFSRowHit(),
         refresh_manager=ramulator.refresh_manager.AllBank(),
         row_policy=ramulator.row_policy.Open(),
@@ -36,7 +37,7 @@ def read_n(n=1):
     # Pass-through mapping preserves the frontend's DRAM address vectors.
     mem = ramulator.memory_system.GenericDRAM(
         clock_ratio=1,
-        controllers=[ctrl] * NUM_CHANNELS,
+        controllers=[ctrl] * NUM_CHANNELS * NUM_PSEUDO,
         channel_mapper=ramulator.channel_mapper.CacheLineInterleave(),
     )
 
@@ -54,7 +55,7 @@ def read_n(n=1):
     if isinstance(controllers, dict):
         controllers = [controllers]
 
-    _, timing = ddr3.resolve()
+    _, timing = hbm4.resolve()
     clock_period_ns = timing["tCK_ps"] / 1000.0 
 
     # Controllers run concurrently, so do not sum their cycles.
@@ -90,7 +91,7 @@ def read_n(n=1):
     print(f"Row Hit Rate:          {row_hit_rate:.3f}%")
 
     return {
-        "dram": "DDR3",
+        "dram": "HBM4",
         "num_streams": n,
         "controller_cycles": cycles,
         "simulated_time_ms": simulated_time_ms,
