@@ -32,7 +32,7 @@ ctrl = ramulator.controller.HBM12(
     dram=hbm1,
     scheduler=ramulator.scheduler.FRFCFSRowHit(),
     refresh_manager=ramulator.refresh_manager.AllBank(),
-    row_policy=ramulator.row_policy.ClosedCAP(), # closed mor typical than open for HBM
+    row_policy=ramulator.row_policy.Open(), # closed mor typical than open for HBM
     addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(), # avoid seg fault
 )
 
@@ -64,10 +64,11 @@ if stats:
 
     # average read latency
     frontend_stats = stats.get("frontend", {})
-    avg_read_latency_cycles = frontend_stats.get("avg_read_latency", 0)
-    # Note: If your build uses "avg_probe_latency", swap it here.
-    # To convert to nanoseconds if needed, multiply by your DRAM's tCK clock period.
+    # average read latency
+    # Ramulator 2 profiles average read latency directly on the controller level
+    avg_read_latency_cycles = controllers[0].get("avg_read_latency", 0)
     print(f"Average Read Latency:     {avg_read_latency_cycles:.2f} cycles")
+
 
     # throughput/BW
     total_throughput_mbps = sum(c.get("total_throughput_MBps", 0) for c in controllers)

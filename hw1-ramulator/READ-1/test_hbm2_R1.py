@@ -37,7 +37,7 @@ ctrl = ramulator.controller.HBM12(
         dram=hbm2,
         scheduler=ramulator.scheduler.FRFCFSRowHit(),
         refresh_manager=ramulator.refresh_manager.AllBank(),
-        row_policy=ramulator.row_policy.ClosedCAP(), # closed more typical than open for HBM
+        row_policy=ramulator.row_policy.Open(), # closed more typical than open for HBM
         addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
     )
 
@@ -56,7 +56,7 @@ sim.run()
 # Read and print stats
 stats = sim.stats
 if stats:
-    print("\n" + "="*20 + " EXPERIMENT 2.2-1 RESULTS HBM1 " + "="*20)
+    print("\n" + "="*20 + " EXPERIMENT 2.2-1 RESULTS HBM2 " + "="*20)
 
     # total simulated cycles / time
     controllers = stats.get("memory_system", {}).get("controller", {})
@@ -69,9 +69,7 @@ if stats:
 
     # average read latency
     frontend_stats = stats.get("frontend", {})
-    avg_read_latency_cycles = frontend_stats.get("avg_read_latency", 0)
-    # Note: If your build uses "avg_probe_latency", swap it here.
-    # To convert to nanoseconds if needed, multiply by your DRAM's tCK clock period.
+    avg_read_latency_cycles = controllers[0].get("avg_read_latency", 0)
     print(f"Average Read Latency:     {avg_read_latency_cycles:.2f} cycles")
 
     # throughput/BW
