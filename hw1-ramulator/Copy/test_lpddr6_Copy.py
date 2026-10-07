@@ -36,7 +36,7 @@ ctrl = ramulator.controller.LPDDR6(
         dram=lpddr6,
         scheduler=ramulator.scheduler.FRFCFSRowHit(),
         refresh_manager=ramulator.refresh_manager.AllBank(),
-        row_policy=ramulator.row_policy.ClosedCAP(), # somewhat more typical for LPDDR
+        row_policy=ramulator.row_policy.Open(), # somewhat more typical for LPDDR
         addr_mapper=ramulator.addr_mapper.RoBaRaCoCh(),
     )
 
@@ -69,9 +69,7 @@ if stats:
 
     # average read latency
     frontend_stats = stats.get("frontend", {})
-    avg_read_latency_cycles = frontend_stats.get("avg_read_latency", 0)
-    # Note: If your build uses "avg_probe_latency", swap it here.
-    # To convert to nanoseconds if needed, multiply by your DRAM's tCK clock period.
+    avg_read_latency_cycles = controllers[0].get("avg_read_latency", 0)
     print(f"Average Read Latency:     {avg_read_latency_cycles:.2f} cycles")
 
     # throughput/BW
